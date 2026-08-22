@@ -47,7 +47,7 @@ local function findTarget()
 	return hitResult
 end
 
--- Web Release Fling (Controlled & Smooth)
+-- Web Release Fling
 local function stopGrapple(isJumpLaunch)
 	if not isSwinging then
 		return
@@ -87,7 +87,7 @@ local function stopGrapple(isJumpLaunch)
 		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 	end
 
-	-- Controllable Upright Fling Launch
+	-- Spider-Man Fling Launch
 	if rootPart then
 		local cameraLook = Camera.CFrame.LookVector
 		local forwardLook = Vector3.new(cameraLook.X, math.max(0.1, cameraLook.Y), cameraLook.Z).Unit
@@ -105,7 +105,7 @@ local function stopGrapple(isJumpLaunch)
 
 		local upwardBoost = GrappleConfig.Launch.UpwardBoost
 		if isJumpLaunch then
-			upwardBoost = upwardBoost * 1.4 -- Controlled extra height on Spacebar Jump
+			upwardBoost = upwardBoost * 1.5 -- Extra height on Spacebar Jump
 		end
 
 		local finalVelocity = (launchDirection * boostSpeed) + Vector3.new(0, upwardBoost, 0)
@@ -122,13 +122,13 @@ local function stopGrapple(isJumpLaunch)
 		end
 
 		rootPart:ApplyImpulse(finalVelocity * mass)
-		print(string.format("🚀 Controllable Fling Launch! Speed: %.1f studs/sec", boostSpeed))
+		print(string.format("🚀 Spider-Man Launch! Speed: %.1f studs/sec", boostSpeed))
 	else
 		print("🪝 Web released.")
 	end
 end
 
--- Upright Web Swing Attachment
+-- Spider-Man Web Swing Attachment
 local function startGrapple(hitPosition)
 	local _, rootPart, humanoid = getCharacterParts()
 	if not rootPart or not humanoid or humanoid.Health <= 0 then
@@ -158,20 +158,20 @@ local function startGrapple(hitPosition)
 	rootAttachment.Parent = rootPart
 	activeRootAttachment = rootAttachment
 
-	-- 3. Create smooth physical RopeConstraint
+	-- 3. Create physical RopeConstraint
 	local rope = Instance.new("RopeConstraint")
-	rope.Name = "UprightWebRope"
+	rope.Name = "SpiderWebRope"
 	rope.Attachment0 = rootAttachment
 	rope.Attachment1 = hookAttachment
 	rope.Length = math.max(initialDistance, GrappleConfig.Web.MinLength)
-	rope.Restitution = 0.1
+	rope.Restitution = 0.15
 	rope.Thickness = 0.18
 	rope.Color = BrickColor.new("Cyan")
 	rope.Visible = true
 	rope.Parent = rootPart
 	activeRope = rope
 
-	-- 4. Create VectorForce for smooth forward swing push
+	-- 4. Create VectorForce for Spider-Man inward web tension & forward swoop push
 	local force = Instance.new("VectorForce")
 	force.Name = "WebSwingForce"
 	force.Attachment0 = rootAttachment
@@ -180,15 +180,15 @@ local function startGrapple(hitPosition)
 	force.Parent = rootPart
 	activeVectorForce = force
 
-	-- 5. ALWAYS keep PlatformStand = false so character stays upright!
+	-- 5. Enable freefall state so physics swings character
 	humanoid.PlatformStand = false
 	humanoid.AutoRotate = true
 	humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
 
-	print(string.format("🪝 Attached Web! Distance: %.1f studs", initialDistance))
+	print(string.format("🪝 Web Attached! Initial Length: %.1f studs", initialDistance))
 end
 
--- Physics loop: Smooth swing acceleration & A/D Key Steering
+-- Physics loop: Spider-Man Web Pull & Fast W-Key Reel-In
 RunService.Stepped:Connect(function(_, deltaTime)
 	if not isSwinging or not activeRope or not currentHookPosition then
 		return
@@ -200,16 +200,20 @@ RunService.Stepped:Connect(function(_, deltaTime)
 		return
 	end
 
-	local distToAnchor = (currentHookPosition - rootPart.Position).Magnitude
+	local currentPos = rootPart.Position
+	local distToAnchor = (currentHookPosition - currentPos).Magnitude
 
-	-- Auto-release if pulled too close to anchor point
+	-- Auto-release if pulled extremely close to anchor point
 	if distToAnchor <= GrappleConfig.Web.MinLength then
 		stopGrapple(false)
 		return
 	end
 
-	-- Reel in web smoothly if holding W
-	if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+	-- 1. Fast Reel-In when holding W (Pulls player inward toward the hook point)
+	local isHoldingW = UserInputService:IsKeyDown(Enum.KeyCode.W)
+	local isHoldingClick = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+
+	if isHoldingW or isHoldingClick then
 		local newLength = math.max(
 			GrappleConfig.Web.MinLength,
 			activeRope.Length - (GrappleConfig.Web.ReelInSpeed * deltaTime)
@@ -217,21 +221,26 @@ RunService.Stepped:Connect(function(_, deltaTime)
 		activeRope.Length = newLength
 	end
 
-	-- Apply smooth forward force along camera direction + A/D Steering
+	-- 2. Spider-Man Physics: Combine Inward Web Pull Vector + Forward Camera Swoop Push!
 	if activeVectorForce then
+		local inwardDir = (currentHookPosition - currentPos).Unit
 		local cameraLook = Vector3.new(Camera.CFrame.LookVector.X, 0, Camera.CFrame.LookVector.Z).Unit
 		local cameraRight = Vector3.new(Camera.CFrame.RightVector.X, 0, Camera.CFrame.RightVector.Z).Unit
-		local moveDir = cameraLook
 
 		-- A/D Key Mid-Air Steering
+		local steerDir = Vector3.zero
 		if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-			moveDir = (moveDir - cameraRight * 0.6).Unit
+			steerDir = steerDir - cameraRight * 0.5
 		end
 		if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-			moveDir = (moveDir + cameraRight * 0.6).Unit
+			steerDir = steerDir + cameraRight * 0.5
 		end
 
-		activeVectorForce.Force = moveDir * GrappleConfig.Web.SwoopBoost
+		-- Combine inward web pull force (60%) with forward swoop push (40%)
+		local inwardForce = inwardDir * GrappleConfig.Web.InwardPullForce
+		local forwardForce = (cameraLook + steerDir).Unit * GrappleConfig.Web.ForwardSwoopForce
+
+		activeVectorForce.Force = inwardForce + forwardForce
 	end
 end)
 
@@ -247,7 +256,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			startGrapple(hit.Position)
 		end
 	elseif input.KeyCode == Enum.KeyCode.Space and isSwinging then
-		stopGrapple(true) -- Spacebar Jump Fling!
+		stopGrapple(true) -- Spacebar Web Jump Fling!
 	end
 end)
 
@@ -266,4 +275,4 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 	end)
 end)
 
-print("✅ Controllable Web Controller loaded successfully!")
+print("🕸️ Spider-Man Inward Web Pull & Reel-In Controller Loaded Successfully!")

@@ -10,25 +10,24 @@ local GrappleConfig = {
 
 	-- Web Reach & Distance
 	MaxDistance = 300, -- Reach of web line (studs)
-	MinDistance = 12, -- Minimum attach distance
+	MinDistance = 10, -- Minimum attach distance
 	Cooldown = 0.1, -- Fast chaining between webs
 
-	-- Spider-Man Web Physics (Smooth & Controllable)
+	-- Spider-Man Web Physics (Pull & Reel-In)
 	Web = {
-		Stiffness = 1800, -- Smooth stiffness
-		Damping = 120, -- Smooth damping
-		SwoopBoost = 1200, -- Reduced from 3800 -> 1200 for smooth, controllable swing speed!
-		ReelInSpeed = 20, -- Controlled reel-in speed when holding W
-		MinLength = 12, -- Minimum web length
+		InwardPullForce = 2200, -- Inward spring pull toward the anchor point (Spider-Man web tension)
+		ForwardSwoopForce = 1800, -- Forward push along camera aim
+		ReelInSpeed = 55, -- Fast reel-in speed when holding W
+		MinLength = 8, -- Minimum web length
 	},
 
-	-- Launch / Release Fling (Controlled & Snappy)
+	-- Launch / Release Fling
 	Launch = {
-		ForwardBoost = 25, -- Controlled forward fling boost
-		UpwardBoost = 18, -- Smooth upward lift
-		VelocityPreservation = 1.05, -- Momentum multiplier on release
-		MaxVelocity = 110, -- Capped at 110 studs/sec so you never lose control!
-		MinimumFlingSpeed = 25, -- Minimum launch speed
+		ForwardBoost = 35, -- Forward velocity added on release
+		UpwardBoost = 22, -- Upward lift on release
+		VelocityPreservation = 1.15, -- Momentum multiplier when letting go
+		MaxVelocity = 140, -- Maximum speed cap
+		MinimumFlingSpeed = 35, -- Guaranteed minimum launch speed
 	},
 
 	-- Soft-Lock & Targeting
