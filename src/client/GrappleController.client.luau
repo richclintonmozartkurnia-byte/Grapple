@@ -54,7 +54,7 @@ local function stopGrapple(isJumpLaunch)
 	end
 	isSwinging = false
 
-	local _, rootPart, humanoid = getCharacterParts()
+	local character, rootPart, humanoid = getCharacterParts()
 
 	-- 1. Read current velocity BEFORE destroying the rope
 	local currentVelocity = rootPart and rootPart.AssemblyLinearVelocity or Vector3.zero
@@ -80,39 +80,45 @@ local function stopGrapple(isJumpLaunch)
 
 	currentHookPosition = nil
 
-	-- 3. Transition Humanoid into Jumping state so Roblox physics accepts fling velocity!
+	-- 3. Restore humanoid state
 	if humanoid then
 		humanoid.AutoRotate = true
-		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+		humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
 	end
 
-	-- 4. STAGE 3 LAUNCH: Guaranteed Fling Velocity
+	-- 4. UNSTOPPABLE PHYSICS IMPULSE LAUNCH (ApplyImpulse)
 	if rootPart then
 		local cameraLook = Camera.CFrame.LookVector
 		local forwardLook = Vector3.new(cameraLook.X, math.max(0.1, cameraLook.Y), cameraLook.Z).Unit
 
 		local launchDirection = forwardLook
-		if currentSpeed > 3 and currentVelocity.Magnitude > 0 then
+		if currentSpeed > 2 and currentVelocity.Magnitude > 0 then
 			launchDirection = (forwardLook * 0.6 + currentVelocity.Unit * 0.4).Unit
 		end
 
-		-- Calculate launch speed (always guarantees a minimum snappy fling speed)
-		local rawBoost = math.max(
-			currentSpeed * GrappleConfig.Launch.VelocityPreservation + GrappleConfig.Launch.ForwardBoost,
-			GrappleConfig.Launch.MinimumFlingSpeed
-		)
-		local boostSpeed = math.min(rawBoost, GrappleConfig.Launch.MaxVelocity)
+		-- Speed calculation
+		local boostSpeed = math.clamp(currentSpeed * 1.2 + 35, 45, 160)
 
-		-- Satisfying upward lift
-		local upwardBoost = GrappleConfig.Launch.UpwardBoost
-		if isJumpLaunch then
-			upwardBoost = upwardBoost * 1.6 -- Extra height on Spacebar Jump
+		-- Upward height (+25 standard, +40 for Spacebar jump)
+		local upwardBoost = isJumpLaunch and 40 or 25
+
+		-- Set direct velocity AND fire ApplyImpulse scaled by character mass
+		local targetVelocity = (launchDirection * boostSpeed) + Vector3.new(0, upwardBoost, 0)
+		rootPart.AssemblyLinearVelocity = targetVelocity
+
+		-- Calculate character mass for physics impulse
+		local mass = rootPart:GetMass()
+		if character then
+			for _, part in character:GetDescendants() do
+				if part:IsA("BasePart") then
+					mass = mass + part:GetMass()
+				end
+			end
 		end
 
-		local finalVelocity = (launchDirection * boostSpeed) + Vector3.new(0, upwardBoost, 0)
-		rootPart.AssemblyLinearVelocity = finalVelocity
+		rootPart:ApplyImpulse(targetVelocity * mass)
 
-		print(string.format("🚀 Fling Launch Fired! Speed: %.1f studs/sec | Upward: %.1f", boostSpeed, upwardBoost))
+		print(string.format("🚀 ApplyImpulse Fling Executed! Mass: %.1f | Speed: %.1f", mass, boostSpeed))
 	else
 		print("🪝 Detached grapple rope.")
 	end
@@ -248,4 +254,4 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 	end)
 end)
 
-print("✅ Humanoid State Fix applied to GrappleController!")
+print("✅ ApplyImpulse physics fling loaded successfully!")
