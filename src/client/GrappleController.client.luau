@@ -10,9 +10,9 @@ local Camera = Workspace.CurrentCamera or Workspace:WaitForChild("Camera")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GrappleConfig = require(Shared:WaitForChild("GrappleConfig"))
 
--- State variables for active Spider-Man Web Swing
+-- State variables for active Web Swing
 local isSwinging = false
-local activeSpring = nil
+local activeRope = nil
 local activeHookAttachment = nil
 local activeRootAttachment = nil
 local activeVectorForce = nil
@@ -47,7 +47,7 @@ local function findTarget()
 	return hitResult
 end
 
--- Spider-Man Release Fling
+-- Web Release Fling (Keeps Character Upright & Responsive)
 local function stopGrapple(isJumpLaunch)
 	if not isSwinging then
 		return
@@ -60,14 +60,14 @@ local function stopGrapple(isJumpLaunch)
 	local currentVelocity = rootPart and rootPart.AssemblyLinearVelocity or Vector3.zero
 	local currentSpeed = currentVelocity.Magnitude
 
-	-- Clean up physical spring and attachments
+	-- Clean up physical constraints and attachments
 	if activeVectorForce then
 		activeVectorForce:Destroy()
 		activeVectorForce = nil
 	end
-	if activeSpring then
-		activeSpring:Destroy()
-		activeSpring = nil
+	if activeRope then
+		activeRope:Destroy()
+		activeRope = nil
 	end
 	if activeHookAttachment then
 		activeHookAttachment:Destroy()
@@ -80,21 +80,21 @@ local function stopGrapple(isJumpLaunch)
 
 	currentHookPosition = nil
 
-	-- Restore Humanoid controls
+	-- Restore Humanoid controls (ALWAYS keep PlatformStand false & AutoRotate true)
 	if humanoid then
-		humanoid.AutoRotate = true
 		humanoid.PlatformStand = false
+		humanoid.AutoRotate = true
 		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 	end
 
-	-- High-Speed Spider-Man Web Fling
+	-- High-Speed Upright Fling Launch
 	if rootPart then
 		local cameraLook = Camera.CFrame.LookVector
 		local forwardLook = Vector3.new(cameraLook.X, math.max(0.15, cameraLook.Y), cameraLook.Z).Unit
 
 		local launchDirection = forwardLook
 		if currentSpeed > 3 and currentVelocity.Magnitude > 0 then
-			launchDirection = (forwardLook * 0.75 + currentVelocity.Unit * 0.25).Unit
+			launchDirection = (forwardLook * 0.7 + currentVelocity.Unit * 0.3).Unit
 		end
 
 		local boostSpeed = math.clamp(
@@ -122,13 +122,13 @@ local function stopGrapple(isJumpLaunch)
 		end
 
 		rootPart:ApplyImpulse(finalVelocity * mass)
-		print(string.format("🕸️ Spider-Man Web Launch! Speed: %.1f studs/sec", boostSpeed))
+		print(string.format("🚀 Upright Fling Launch! Speed: %.1f studs/sec", boostSpeed))
 	else
-		print("🕸️ Web released.")
+		print("🪝 Web released.")
 	end
 end
 
--- Spider-Man Attach & Web Swoop
+-- Upright Web Swing Attachment
 local function startGrapple(hitPosition)
 	local _, rootPart, humanoid = getCharacterParts()
 	if not rootPart or not humanoid or humanoid.Health <= 0 then
@@ -158,41 +158,39 @@ local function startGrapple(hitPosition)
 	rootAttachment.Parent = rootPart
 	activeRootAttachment = rootAttachment
 
-	-- 3. Create Spider-Man Elastic SpringConstraint (Catches drop & swoops up!)
-	local spring = Instance.new("SpringConstraint")
-	spring.Name = "SpiderWebSpring"
-	spring.Attachment0 = rootAttachment
-	spring.Attachment1 = hookAttachment
-	spring.FreeLength = initialDistance * 0.88 -- Elastic initial tension to catch drop
-	spring.Stiffness = GrappleConfig.Web.Stiffness
-	spring.Damping = GrappleConfig.Web.Damping
-	spring.MaxForce = 150000
-	spring.Thickness = 0.18
-	spring.Color = BrickColor.new("Cyan")
-	spring.Visible = true
-	spring.Parent = rootPart
-	activeSpring = spring
+	-- 3. Create smooth physical RopeConstraint (Keeps avatar upright)
+	local rope = Instance.new("RopeConstraint")
+	rope.Name = "UprightWebRope"
+	rope.Attachment0 = rootAttachment
+	rope.Attachment1 = hookAttachment
+	rope.Length = math.max(initialDistance, GrappleConfig.Web.MinLength)
+	rope.Restitution = 0.1
+	rope.Thickness = 0.18
+	rope.Color = BrickColor.new("Cyan")
+	rope.Visible = true
+	rope.Parent = rootPart
+	activeRope = rope
 
-	-- 4. Create VectorForce for tangential web swoop push
+	-- 4. Create VectorForce for smooth forward swing push
 	local force = Instance.new("VectorForce")
-	force.Name = "WebSwoopForce"
+	force.Name = "WebSwingForce"
 	force.Attachment0 = rootAttachment
 	force.RelativeTo = Enum.ActuatorRelativeTo.World
 	force.Force = Vector3.zero
 	force.Parent = rootPart
 	activeVectorForce = force
 
-	-- 5. Enable PlatformStand & Freefall so physics swoops character naturally
-	humanoid.PlatformStand = true
-	humanoid.AutoRotate = false
+	-- 5. ALWAYS keep PlatformStand = false so character stays upright!
+	humanoid.PlatformStand = false
+	humanoid.AutoRotate = true
 	humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
 
-	print(string.format("🕸️ Web Attached! Length: %.1f studs", initialDistance))
+	print(string.format("🪝 Attached Web! Distance: %.1f studs", initialDistance))
 end
 
--- Physics loop: Spider-Man Web Swoop acceleration
+-- Physics loop: Smooth upright swing acceleration
 RunService.Stepped:Connect(function(_, deltaTime)
-	if not isSwinging or not activeSpring or not currentHookPosition then
+	if not isSwinging or not activeRope or not currentHookPosition then
 		return
 	end
 
@@ -214,24 +212,15 @@ RunService.Stepped:Connect(function(_, deltaTime)
 	if UserInputService:IsKeyDown(Enum.KeyCode.W) then
 		local newLength = math.max(
 			GrappleConfig.Web.MinLength,
-			activeSpring.FreeLength - (GrappleConfig.Web.ReelInSpeed * deltaTime)
+			activeRope.Length - (GrappleConfig.Web.ReelInSpeed * deltaTime)
 		)
-		activeSpring.FreeLength = newLength
+		activeRope.Length = newLength
 	end
 
-	-- Apply smooth tangential web swoop force
+	-- Apply smooth forward force along camera direction (Keeps avatar upright and moving)
 	if activeVectorForce then
 		local cameraLook = Vector3.new(Camera.CFrame.LookVector.X, 0, Camera.CFrame.LookVector.Z).Unit
-		local currentVelocity = rootPart.AssemblyLinearVelocity
-		local webDir = (currentHookPosition - rootPart.Position).Unit
-
-		-- Calculate arc swoop tangent
-		local tangent = (currentVelocity - (currentVelocity:Dot(webDir) * webDir))
-		if tangent.Magnitude > 1 then
-			activeVectorForce.Force = (tangent.Unit * 0.7 + cameraLook * 0.3).Unit * GrappleConfig.Web.SwoopBoost
-		else
-			activeVectorForce.Force = cameraLook * GrappleConfig.Web.SwoopBoost
-		end
+		activeVectorForce.Force = cameraLook * GrappleConfig.Web.SwoopBoost
 	end
 end)
 
@@ -247,7 +236,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			startGrapple(hit.Position)
 		end
 	elseif input.KeyCode == Enum.KeyCode.Space and isSwinging then
-		stopGrapple(true) -- Spacebar Web Jump Fling!
+		stopGrapple(true) -- Spacebar Jump Fling!
 	end
 end)
 
@@ -266,4 +255,4 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 	end)
 end)
 
-print("🕸️ Spider-Man Web Swoop Engine Loaded Successfully!")
+print("✅ Upright Web Swing Controller loaded successfully!")
