@@ -2,39 +2,38 @@
 local GrappleConfig = {
 	-- Input Settings
 	Keybinds = {
-		Primary = Enum.UserInputType.MouseButton1, -- Left Click to Grapple / Hold to Swing
+		Primary = Enum.UserInputType.MouseButton1, -- Left Click to Web-Swing
 		Secondary = Enum.KeyCode.E, -- Keyboard alternative
-		MobileButton = true, -- Auto-generate on-screen button for mobile/touch
-		JumpToRelease = true, -- Pressing Space while swinging releases with extra boost
+		MobileButton = true,
+		JumpToRelease = true,
 	},
 
-	-- Grapple Hook Parameters
-	MaxDistance = 300, -- Maximum reach of the grappling hook (studs)
-	MinDistance = 12, -- Minimum distance to attach
-	GrappleSpeed = 160, -- Reel-in / Pull speed if pulling directly (studs/sec)
-	Cooldown = 0.1, -- Delay between swings
+	-- Web Reach & Distance
+	MaxDistance = 350, -- Reach of web line (studs)
+	MinDistance = 15, -- Minimum attach distance
+	Cooldown = 0.05, -- Fast chaining between webs
 
-	-- Swing Physics (Spider-Man & Stickman Hook style)
-	Swing = {
-		TangentialForce = 3200, -- Acceleration applied in direction of swing
-		ReelInSpeed = 32, -- How fast rope shortens if holding W
-		MinRopeLength = 14, -- Minimum rope length
-		GravityMultiplier = 1.15, -- Gravity factor while swinging
-		AirResistance = 0.998, -- Velocity retention factor in air
+	-- Spider-Man Web Physics (Spring & Swoop)
+	Web = {
+		Stiffness = 2400, -- Spring stiffness (catches falling speed and swoops upward)
+		Damping = 140, -- Smooth damping to prevent jitter
+		SwoopBoost = 3800, -- Forward tangential push during the swoop
+		ReelInSpeed = 40, -- Reel-in speed when holding W
+		MinLength = 12, -- Minimum web length
 	},
 
-	-- Launch / Release Boost (Stickman Hook style fling)
+	-- Launch / Release Fling
 	Launch = {
-		ForwardBoost = 40, -- Forward velocity added on release
-		UpwardBoost = 22, -- Restored satisfying upward lift for high arc flings
-		VelocityPreservation = 1.15, -- Momentum multiplier when letting go
-		MaxVelocity = 170, -- Maximum speed cap
-		MinimumFlingSpeed = 35, -- Guaranteed minimum launch speed
+		ForwardBoost = 50, -- High-speed forward launch fling
+		UpwardBoost = 28, -- Upward swoop lift
+		VelocityPreservation = 1.25, -- Momentum multiplier on release
+		MaxVelocity = 200, -- Maximum speed cap
+		MinimumFlingSpeed = 45, -- Guaranteed minimum launch speed
 	},
 
 	-- Soft-Lock & Targeting
 	Targeting = {
-		SoftLockRadius = 18,
+		SoftLockRadius = 22, -- Soft-lock radius around cursor to catch ledges easily
 		RaycastLayers = RaycastParams.new(),
 		ValidTag = "Grappleable",
 		AllowAllSurfaces = true,
@@ -42,16 +41,11 @@ local GrappleConfig = {
 
 	-- Visual & Sound Effects
 	Visuals = {
-		RopeColor = Color3.fromRGB(0, 210, 255),
-		RopeColorActive = Color3.fromRGB(255, 170, 0),
-		RopeWidth = 0.18,
+		RopeColor = Color3.fromRGB(0, 220, 255),
+		RopeWidth = 0.2,
 		RopeTexture = "rbxassetid://6034177579",
 		RopeTextureLength = 4,
-		RopeTransparency = 0.1,
-		ShowHookPointMarker = true,
-		ReticleColorValid = Color3.fromRGB(0, 255, 180),
-		ReticleColorInvalid = Color3.fromRGB(255, 80, 80),
-		ReticleColorInRange = Color3.fromRGB(0, 200, 255),
+		RopeTransparency = 0.05,
 	},
 }
 
