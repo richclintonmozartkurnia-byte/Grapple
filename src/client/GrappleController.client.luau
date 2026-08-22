@@ -85,13 +85,15 @@ local function stopGrapple(isJumpLaunch)
 		humanoid.AutoRotate = true
 	end
 
-	-- 4. STAGE 3 LAUNCH: Reliable camera-guided fling launch!
+	-- 4. STAGE 3 LAUNCH: Satisfying aerial fling launch!
 	if rootPart then
 		local cameraLook = Camera.CFrame.LookVector
-		-- Primary launch direction follows camera aim (70%) combined with swing direction (30%)
-		local launchDirection = cameraLook
+		-- Strip downward camera pitch so looking down never pulls player into the ground
+		local forwardLook = Vector3.new(cameraLook.X, math.max(0, cameraLook.Y), cameraLook.Z).Unit
+
+		local launchDirection = forwardLook
 		if currentSpeed > 3 and currentVelocity.Magnitude > 0 then
-			launchDirection = (cameraLook * 0.7 + currentVelocity.Unit * 0.3).Unit
+			launchDirection = (forwardLook * 0.6 + currentVelocity.Unit * 0.4).Unit
 		end
 
 		-- Calculate launch speed (always guarantees a minimum snappy fling speed)
@@ -101,14 +103,14 @@ local function stopGrapple(isJumpLaunch)
 		)
 		local boostSpeed = math.min(rawBoost, GrappleConfig.Launch.MaxVelocity)
 
-		-- Upward lift (reduced so player flings forward rather than catapulting straight up)
+		-- Satisfying upward lift (+22 standard, +33 for Spacebar jump)
 		local upwardBoost = GrappleConfig.Launch.UpwardBoost
 		if isJumpLaunch then
-			upwardBoost = upwardBoost * 1.35 -- Moderate extra lift if Spacebar Jumped
+			upwardBoost = upwardBoost * 1.5 -- Punchy extra height if Spacebar Jumped!
 		end
 
 		rootPart.AssemblyLinearVelocity = (launchDirection * boostSpeed) + Vector3.new(0, upwardBoost, 0)
-		print(string.format("🚀 Fling Launch! Speed: %.1f studs/sec", boostSpeed))
+		print(string.format("🚀 High Fling Launch! Speed: %.1f | Lift: %.1f", boostSpeed, upwardBoost))
 	else
 		print("🪝 Detached grapple rope.")
 	end
@@ -122,7 +124,6 @@ local function startGrapple(hitPosition)
 	end
 
 	local initialDistance = (hitPosition - rootPart.Position).Magnitude
-	-- Prevent attaching if closer than MinDistance to avoid pet-leash physics bug
 	if initialDistance < GrappleConfig.MinDistance then
 		print("❌ Too close to surface to grapple.")
 		return
@@ -188,7 +189,7 @@ RunService.Stepped:Connect(function(_, deltaTime)
 
 	local distToAnchor = (currentHookPosition - rootPart.Position).Magnitude
 
-	-- Auto-release if pulled too close to anchor point (prevents pet-leash rigid lock)
+	-- Auto-release if pulled too close to anchor point
 	if distToAnchor <= GrappleConfig.Swing.MinRopeLength - 2 then
 		stopGrapple(false)
 		return
@@ -245,4 +246,4 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 	end)
 end)
 
-print("✅ Tuned GrappleController loaded successfully!")
+print("✅ High Upward Boost GrappleController loaded successfully!")
