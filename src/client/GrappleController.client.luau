@@ -80,16 +80,16 @@ local function stopGrapple(isJumpLaunch)
 
 	currentHookPosition = nil
 
-	-- 3. Restore character rotation
+	-- 3. Transition Humanoid into Jumping state so Roblox physics accepts fling velocity!
 	if humanoid then
 		humanoid.AutoRotate = true
+		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 	end
 
-	-- 4. STAGE 3 LAUNCH: Satisfying aerial fling launch!
+	-- 4. STAGE 3 LAUNCH: Guaranteed Fling Velocity
 	if rootPart then
 		local cameraLook = Camera.CFrame.LookVector
-		-- Strip downward camera pitch so looking down never pulls player into the ground
-		local forwardLook = Vector3.new(cameraLook.X, math.max(0, cameraLook.Y), cameraLook.Z).Unit
+		local forwardLook = Vector3.new(cameraLook.X, math.max(0.1, cameraLook.Y), cameraLook.Z).Unit
 
 		local launchDirection = forwardLook
 		if currentSpeed > 3 and currentVelocity.Magnitude > 0 then
@@ -103,14 +103,16 @@ local function stopGrapple(isJumpLaunch)
 		)
 		local boostSpeed = math.min(rawBoost, GrappleConfig.Launch.MaxVelocity)
 
-		-- Satisfying upward lift (+22 standard, +33 for Spacebar jump)
+		-- Satisfying upward lift
 		local upwardBoost = GrappleConfig.Launch.UpwardBoost
 		if isJumpLaunch then
-			upwardBoost = upwardBoost * 1.5 -- Punchy extra height if Spacebar Jumped!
+			upwardBoost = upwardBoost * 1.6 -- Extra height on Spacebar Jump
 		end
 
-		rootPart.AssemblyLinearVelocity = (launchDirection * boostSpeed) + Vector3.new(0, upwardBoost, 0)
-		print(string.format("🚀 High Fling Launch! Speed: %.1f | Lift: %.1f", boostSpeed, upwardBoost))
+		local finalVelocity = (launchDirection * boostSpeed) + Vector3.new(0, upwardBoost, 0)
+		rootPart.AssemblyLinearVelocity = finalVelocity
+
+		print(string.format("🚀 Fling Launch Fired! Speed: %.1f studs/sec | Upward: %.1f", boostSpeed, upwardBoost))
 	else
 		print("🪝 Detached grapple rope.")
 	end
@@ -246,4 +248,4 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 	end)
 end)
 
-print("✅ High Upward Boost GrappleController loaded successfully!")
+print("✅ Humanoid State Fix applied to GrappleController!")
