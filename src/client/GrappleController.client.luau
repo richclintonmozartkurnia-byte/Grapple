@@ -85,19 +85,26 @@ local function stopGrapple(isJumpLaunch)
 		humanoid.AutoRotate = true
 	end
 
-	-- 4. STAGE 3 LAUNCH: Fling the player forward with accumulated momentum!
-	if rootPart and currentSpeed > 2 then
+	-- 4. STAGE 3 LAUNCH: Reliable camera-guided fling launch!
+	if rootPart then
 		local cameraLook = Camera.CFrame.LookVector
-		local launchDirection = (currentVelocity.Unit * 0.7 + cameraLook * 0.3).Unit
+		-- Primary launch direction follows camera aim (70%) combined with swing direction (30%)
+		local launchDirection = cameraLook
+		if currentSpeed > 3 and currentVelocity.Magnitude > 0 then
+			launchDirection = (cameraLook * 0.7 + currentVelocity.Unit * 0.3).Unit
+		end
 
-		local boostSpeed = math.min(
+		-- Calculate launch speed (always guarantees a minimum snappy fling speed)
+		local rawBoost = math.max(
 			currentSpeed * GrappleConfig.Launch.VelocityPreservation + GrappleConfig.Launch.ForwardBoost,
-			GrappleConfig.Launch.MaxVelocity
+			GrappleConfig.Launch.MinimumFlingSpeed
 		)
+		local boostSpeed = math.min(rawBoost, GrappleConfig.Launch.MaxVelocity)
 
+		-- Upward lift (reduced so player flings forward rather than catapulting straight up)
 		local upwardBoost = GrappleConfig.Launch.UpwardBoost
 		if isJumpLaunch then
-			upwardBoost = upwardBoost * 1.4 -- Extra lift if triggered via Spacebar Jump!
+			upwardBoost = upwardBoost * 1.35 -- Moderate extra lift if Spacebar Jumped
 		end
 
 		rootPart.AssemblyLinearVelocity = (launchDirection * boostSpeed) + Vector3.new(0, upwardBoost, 0)
@@ -111,6 +118,13 @@ end
 local function startGrapple(hitPosition)
 	local _, rootPart, humanoid = getCharacterParts()
 	if not rootPart or not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	local initialDistance = (hitPosition - rootPart.Position).Magnitude
+	-- Prevent attaching if closer than MinDistance to avoid pet-leash physics bug
+	if initialDistance < GrappleConfig.MinDistance then
+		print("❌ Too close to surface to grapple.")
 		return
 	end
 
@@ -136,7 +150,7 @@ local function startGrapple(hitPosition)
 	rope.Name = "GrappleRope"
 	rope.Attachment0 = rootAttachment
 	rope.Attachment1 = hookAttachment
-	rope.Length = (hitPosition - rootPart.Position).Magnitude
+	rope.Length = math.max(initialDistance, GrappleConfig.Swing.MinRopeLength)
 	rope.Restitution = 0.1
 	rope.Thickness = 0.15
 	rope.Color = BrickColor.new("Cyan")
@@ -160,7 +174,7 @@ local function startGrapple(hitPosition)
 	print(string.format("🪝 Attached rope! Rope Length: %.1f studs", rope.Length))
 end
 
--- Physics loop: Pumping swing acceleration smoothly
+-- Physics loop: Smooth swing acceleration & rope length guard
 RunService.Stepped:Connect(function(_, deltaTime)
 	if not isSwinging or not activeRope or not currentHookPosition then
 		return
@@ -168,6 +182,14 @@ RunService.Stepped:Connect(function(_, deltaTime)
 
 	local _, rootPart, humanoid = getCharacterParts()
 	if not rootPart or not humanoid or humanoid.Health <= 0 then
+		stopGrapple(false)
+		return
+	end
+
+	local distToAnchor = (currentHookPosition - rootPart.Position).Magnitude
+
+	-- Auto-release if pulled too close to anchor point (prevents pet-leash rigid lock)
+	if distToAnchor <= GrappleConfig.Swing.MinRopeLength - 2 then
 		stopGrapple(false)
 		return
 	end
@@ -181,18 +203,10 @@ RunService.Stepped:Connect(function(_, deltaTime)
 		activeRope.Length = newLength
 	end
 
-	-- Apply smooth tangential force along the swing curve
+	-- Apply smooth tangential force along camera direction
 	if activeVectorForce then
-		local currentVelocity = rootPart.AssemblyLinearVelocity
-		local ropeDir = (currentHookPosition - rootPart.Position).Unit
 		local cameraLook = Vector3.new(Camera.CFrame.LookVector.X, 0, Camera.CFrame.LookVector.Z).Unit
-
-		local tangent = (currentVelocity - (currentVelocity:Dot(ropeDir) * ropeDir))
-		if tangent.Magnitude > 1 then
-			activeVectorForce.Force = (tangent.Unit + cameraLook * 0.4).Unit * GrappleConfig.Swing.TangentialForce
-		else
-			activeVectorForce.Force = cameraLook * (GrappleConfig.Swing.TangentialForce * 0.5)
-		end
+		activeVectorForce.Force = cameraLook * GrappleConfig.Swing.TangentialForce
 	end
 end)
 
@@ -205,7 +219,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if input.UserInputType == GrappleConfig.Keybinds.Primary or input.KeyCode == GrappleConfig.Keybinds.Secondary then
 		local hit = findTarget()
 		if hit and hit.Instance then
-			startGrapple(hit.Position) -- ✅ FIXED: Passes hit.Position to startGrapple!
+			startGrapple(hit.Position)
 		else
 			print("❌ Missed! No wall in range to hook onto.")
 		end
@@ -231,4 +245,4 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 	end)
 end)
 
-print("✅ Fixed GrappleController loaded successfully!")
+print("✅ Tuned GrappleController loaded successfully!")
