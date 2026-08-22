@@ -9,31 +9,31 @@ local GrappleConfig = {
 	},
 
 	-- Web Reach & Distance
-	MaxDistance = 350, -- Reach of web line (studs)
-	MinDistance = 15, -- Minimum attach distance
-	Cooldown = 0.05, -- Fast chaining between webs
+	MaxDistance = 300, -- Reach of web line (studs)
+	MinDistance = 12, -- Minimum attach distance
+	Cooldown = 0.1, -- Fast chaining between webs
 
-	-- Spider-Man Web Physics (Spring & Swoop)
+	-- Spider-Man Web Physics (Smooth & Controllable)
 	Web = {
-		Stiffness = 2400, -- Spring stiffness (catches falling speed and swoops upward)
-		Damping = 140, -- Smooth damping to prevent jitter
-		SwoopBoost = 3800, -- Forward tangential push during the swoop
-		ReelInSpeed = 40, -- Reel-in speed when holding W
+		Stiffness = 1800, -- Smooth stiffness
+		Damping = 120, -- Smooth damping
+		SwoopBoost = 1200, -- Reduced from 3800 -> 1200 for smooth, controllable swing speed!
+		ReelInSpeed = 20, -- Controlled reel-in speed when holding W
 		MinLength = 12, -- Minimum web length
 	},
 
-	-- Launch / Release Fling
+	-- Launch / Release Fling (Controlled & Snappy)
 	Launch = {
-		ForwardBoost = 50, -- High-speed forward launch fling
-		UpwardBoost = 28, -- Upward swoop lift
-		VelocityPreservation = 1.25, -- Momentum multiplier on release
-		MaxVelocity = 200, -- Maximum speed cap
-		MinimumFlingSpeed = 45, -- Guaranteed minimum launch speed
+		ForwardBoost = 25, -- Controlled forward fling boost
+		UpwardBoost = 18, -- Smooth upward lift
+		VelocityPreservation = 1.05, -- Momentum multiplier on release
+		MaxVelocity = 110, -- Capped at 110 studs/sec so you never lose control!
+		MinimumFlingSpeed = 25, -- Minimum launch speed
 	},
 
 	-- Soft-Lock & Targeting
 	Targeting = {
-		SoftLockRadius = 22, -- Soft-lock radius around cursor to catch ledges easily
+		SoftLockRadius = 18,
 		RaycastLayers = RaycastParams.new(),
 		ValidTag = "Grappleable",
 		AllowAllSurfaces = true,
@@ -42,10 +42,10 @@ local GrappleConfig = {
 	-- Visual & Sound Effects
 	Visuals = {
 		RopeColor = Color3.fromRGB(0, 220, 255),
-		RopeWidth = 0.2,
+		RopeWidth = 0.18,
 		RopeTexture = "rbxassetid://6034177579",
 		RopeTextureLength = 4,
-		RopeTransparency = 0.05,
+		RopeTransparency = 0.1,
 	},
 }
 

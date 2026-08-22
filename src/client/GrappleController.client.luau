@@ -47,7 +47,7 @@ local function findTarget()
 	return hitResult
 end
 
--- Web Release Fling (Keeps Character Upright & Responsive)
+-- Web Release Fling (Controlled & Smooth)
 local function stopGrapple(isJumpLaunch)
 	if not isSwinging then
 		return
@@ -80,17 +80,17 @@ local function stopGrapple(isJumpLaunch)
 
 	currentHookPosition = nil
 
-	-- Restore Humanoid controls (ALWAYS keep PlatformStand false & AutoRotate true)
+	-- Restore Humanoid controls
 	if humanoid then
 		humanoid.PlatformStand = false
 		humanoid.AutoRotate = true
 		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 	end
 
-	-- High-Speed Upright Fling Launch
+	-- Controllable Upright Fling Launch
 	if rootPart then
 		local cameraLook = Camera.CFrame.LookVector
-		local forwardLook = Vector3.new(cameraLook.X, math.max(0.15, cameraLook.Y), cameraLook.Z).Unit
+		local forwardLook = Vector3.new(cameraLook.X, math.max(0.1, cameraLook.Y), cameraLook.Z).Unit
 
 		local launchDirection = forwardLook
 		if currentSpeed > 3 and currentVelocity.Magnitude > 0 then
@@ -105,7 +105,7 @@ local function stopGrapple(isJumpLaunch)
 
 		local upwardBoost = GrappleConfig.Launch.UpwardBoost
 		if isJumpLaunch then
-			upwardBoost = upwardBoost * 1.5 -- High arc jump launch on Spacebar!
+			upwardBoost = upwardBoost * 1.4 -- Controlled extra height on Spacebar Jump
 		end
 
 		local finalVelocity = (launchDirection * boostSpeed) + Vector3.new(0, upwardBoost, 0)
@@ -122,7 +122,7 @@ local function stopGrapple(isJumpLaunch)
 		end
 
 		rootPart:ApplyImpulse(finalVelocity * mass)
-		print(string.format("🚀 Upright Fling Launch! Speed: %.1f studs/sec", boostSpeed))
+		print(string.format("🚀 Controllable Fling Launch! Speed: %.1f studs/sec", boostSpeed))
 	else
 		print("🪝 Web released.")
 	end
@@ -158,7 +158,7 @@ local function startGrapple(hitPosition)
 	rootAttachment.Parent = rootPart
 	activeRootAttachment = rootAttachment
 
-	-- 3. Create smooth physical RopeConstraint (Keeps avatar upright)
+	-- 3. Create smooth physical RopeConstraint
 	local rope = Instance.new("RopeConstraint")
 	rope.Name = "UprightWebRope"
 	rope.Attachment0 = rootAttachment
@@ -188,7 +188,7 @@ local function startGrapple(hitPosition)
 	print(string.format("🪝 Attached Web! Distance: %.1f studs", initialDistance))
 end
 
--- Physics loop: Smooth upright swing acceleration
+-- Physics loop: Smooth swing acceleration & A/D Key Steering
 RunService.Stepped:Connect(function(_, deltaTime)
 	if not isSwinging or not activeRope or not currentHookPosition then
 		return
@@ -217,10 +217,21 @@ RunService.Stepped:Connect(function(_, deltaTime)
 		activeRope.Length = newLength
 	end
 
-	-- Apply smooth forward force along camera direction (Keeps avatar upright and moving)
+	-- Apply smooth forward force along camera direction + A/D Steering
 	if activeVectorForce then
 		local cameraLook = Vector3.new(Camera.CFrame.LookVector.X, 0, Camera.CFrame.LookVector.Z).Unit
-		activeVectorForce.Force = cameraLook * GrappleConfig.Web.SwoopBoost
+		local cameraRight = Vector3.new(Camera.CFrame.RightVector.X, 0, Camera.CFrame.RightVector.Z).Unit
+		local moveDir = cameraLook
+
+		-- A/D Key Mid-Air Steering
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+			moveDir = (moveDir - cameraRight * 0.6).Unit
+		end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+			moveDir = (moveDir + cameraRight * 0.6).Unit
+		end
+
+		activeVectorForce.Force = moveDir * GrappleConfig.Web.SwoopBoost
 	end
 end)
 
@@ -255,4 +266,4 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 	end)
 end)
 
-print("✅ Upright Web Swing Controller loaded successfully!")
+print("✅ Controllable Web Controller loaded successfully!")
